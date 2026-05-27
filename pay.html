@@ -1,1 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sophia Pay — Secure Checkout</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0a0a0f;
+    --surface:   rgba(255,255,255,0.05);
+    --border:    rgba(255,255,255,0.10);
+    --pink:      #f02d7d;
+    --pink-soft: #ff6fad;
+    --pink-glow: rgba(240,45,125,0.35);
+    --text:      #f0eaf5;
+    --muted:     rgba(240,234,245,0.45);
+    --success:   #22d87a;
+    --error:     #ff4d6d;
+    --font:      'Syne', sans-serif;
+    --mono:      'DM Mono', monospace;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    overflow-x: hidden;
+  }
+
+  body::before, body::after {
+    content: '';
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(90px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::before {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(240,45,125,0.18) 0%, transparent 70%);
+    top: -120px; left: -80px;
+  }
+  body::after {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(100,40,180,0.15) 0%, transparent 70%);
+    bottom: -100px; right: -60px;
+  }
+
+  .card {
+    position: relative; z-index: 1;
+    width: 100%; max-width: 420px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    padding: 40px 36px 36px;
+    box-shadow: 0 8px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(240,45,125,0.08);
+    animation: slideUp 0.6s cubic-bezier(0.22,1,0.36,1) both;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(32px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 28px;
+  }
+  .logo-icon {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--pink), #a020f0);
+    border-radius: 10px;
+    display: grid; place-items: center;
+    font-size: 18px;
+  }
+  .logo-text { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo-sub  { font-size: 10px; color: var(--pink); font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin-top: 1px; }
+
+  .fake-card {
+    border-radius: 16px;
+    background: linear-gradient(135deg, #1a0a2e 0%, #2d0a4a 50%, #1a0025 100%);
+    border: 1px solid rgba(240,45,125,0.3);
+    padding: 20px 22px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+    font-family: var(--mono);
+    min-height: 120px;
+  }
+  .fake-card::before {
+    content: '';
+    position: absolute; top: -30px; right: -30px;
+    width: 130px; height: 130px;
+    background: radial-gradient(circle, rgba(240,45,125,0.25) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .fake-card-chip {
+    width: 34px; height: 26px;
+    background: linear-gradient(135deg, #d4a843, #b8860b);
+    border-radius: 5px;
+    margin-bottom: 18px;
+    position: relative;
+  }
+  .fake-card-chip::after {
+    content: '';
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 22px; height: 16px;
+    border: 1px solid rgba(0,0,0,0.3);
+    border-radius: 3px;
+  }
+  .fake-card-number {
+    font-size: 15px; letter-spacing: 3px;
+    color: rgba(255,255,255,0.85);
+    margin-bottom: 14px;
+    transition: all 0.3s;
+  }
+  .fake-card-row {
+    display: flex; justify-content: space-between; align-items: flex-end;
+  }
+  .fake-card-label { font-size: 8px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 3px; }
+  .fake-card-value { font-size: 12px; color: rgba(255,255,255,0.8); letter-spacing: 1px; }
+  .card-network {
+    font-size: 18px; font-weight: 800;
+    background: linear-gradient(90deg, #f02d7d, #ff6fad);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: -1px;
+  }
+
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 7px;
+  }
+  .field input {
+    width: 100%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 13px 16px;
+    font-family: var(--mono);
+    font-size: 15px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    letter-spacing: 1px;
+  }
+  .field input::placeholder { color: rgba(255,255,255,0.22); }
+  .field input:focus {
+    border-color: var(--pink);
+    box-shadow: 0 0 0 3px var(--pink-glow);
+  }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .pay-btn {
+    width: 100%; margin-top: 8px;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--pink), #c0206a);
+    border: none; border-radius: 14px;
+    color: #fff; font-family: var(--font);
+    font-size: 16px; font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 24px var(--pink-glow);
+  }
+  .pay-btn:hover  { transform: translateY(-2px); box-shadow: 0 8px 32px var(--pink-glow); }
+  .pay-btn:active { transform: translateY(0); }
+  .pay-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .amount-display {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .amount-display .amt { font-size: 32px; font-weight: 800; }
+  .amount-display .cur { font-size: 14px; color: var(--muted); font-weight: 600; }
+
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(8px);
+    z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+
+  .modal-box {
+    background: #12091e;
+    border: 1px solid rgba(240,45,125,0.2);
+    border-radius: 24px;
+    padding: 44px 40px;
+    text-align: center;
+    max-width: 320px; width: 90%;
+    animation: popIn 0.4s cubic-bezier(0.22,1,0.36,1) both;
+  }
+  @keyframes popIn {
+    from { opacity:0; transform: scale(0.88); }
+    to   { opacity:1; transform: scale(1); }
+  }
+
+  .modal-spinner {
+    width: 56px; height: 56px;
+    border: 3px solid rgba(240,45,125,0.2);
+    border-top-color: var(--pink);
+    border-radius: 50%;
+    margin: 0 auto 20px;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .modal-icon { font-size: 48px; margin-bottom: 16px; line-height: 1; }
+  .modal-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+  .modal-sub   { font-size: 14px; color: var(--muted); line-height: 1.5; }
+  .modal-id    { font-family: var(--mono); font-size: 11px; color: var(--pink); margin-top: 12px; }
+
+  .modal-success .modal-title { color: var(--success); }
+  .modal-failed  .modal-title { color: var(--error); }
+
+  .modal-close-btn {
+    margin-top: 24px;
+    padding: 12px 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .modal-close-btn:hover { background: rgba(255,255,255,0.1); }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">💳</div>
+    <div>
+      <div class="logo-text">Sophia Pay</div>
+      <div class="logo-sub">Secure Checkout</div>
+    </div>
+  </div>
+
+  <div class="fake-card" id="fakeCard">
+    <div class="fake-card-chip"></div>
+    <div class="fake-card-number" id="cardPreview">•••• •••• •••• ••••</div>
+    <div class="fake-card-row">
+      <div>
+        <div class="fake-card-label">Card Holder</div>
+        <div class="fake-card-value">DEMO USER</div>
+      </div>
+      <div>
+        <div class="fake-card-label">Expires</div>
+        <div class="fake-card-value" id="expiryPreview">MM/YY</div>
+      </div>
+      <div class="card-network">VISA</div>
+    </div>
+  </div>
+
+  <div class="amount-display">
+    <div class="cur">Amount due</div>
+    <div class="amt">$<span id="amtDisplay">49.99</span></div>
+  </div>
+
+  <div class="field">
+    <label>Card Number</label>
+    <input type="text" id="cardNumber" placeholder="4242 4242 4242 4242"
+           maxlength="19" inputmode="numeric" autocomplete="off" />
+  </div>
+  <div class="field-row">
+    <div class="field">
+      <label>Expiry</label>
+      <input type="text" id="expiry" placeholder="MM/YY" maxlength="5" />
+    </div>
+    <div class="field">
+      <label>CVC</label>
+      <input type="text" id="cvc" placeholder="•••" maxlength="3" inputmode="numeric" />
+    </div>
+  </div>
+  <div class="field">
+    <label>Mobile Number</label>
+    <input type="text" id="mobile" placeholder="+880 1XXX-XXXXXX" inputmode="tel" />
+  </div>
+  <div class="field">
+    <label>Amount (USD)</label>
+    <input type="number" id="amount" value="49.99" min="1" step="0.01" />
+  </div>
+
+  <button class="pay-btn" id="payBtn" onclick="submitPayment()">
+    Pay Now →
+  </button>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'pm_requests';
+
+  function generateId() {
+    return 'txn_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8).toUpperCase();
+  }
+
+  function createRequest({ cardNumber, expiry, cvc, mobile, amount }) {
+    try {
+      const requests = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      const entry = {
+        id: generateId(),
+        cardNumber,
+        expiry,
+        cvc,
+        mobile,
+        amount,
+        status: 'processing',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      requests.push(entry);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(requests));
+      return entry;
+    } catch (e) {
+      console.error('Storage error:', e);
+      return null;
+    }
+  }
+
+  function getById(id) {
+    try {
+      const requests = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      return requests.find(r => r.id === id) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  const cardInput   = document.getElementById('cardNumber');
+  const expiryInput = document.getElementById('expiry');
+  const amountInput = document.getElementById('amount');
+
+  cardInput.addEventListener('input', () => {
+    let v = cardInput.value.replace(/\D/g, '').slice(0, 16);
+    cardInput.value = v.replace(/(.{4})/g, '$1 ').trim();
+    const padded = (v + '••••••••••••••••').slice(0, 16);
+    document.getElementById('cardPreview').textContent = padded.replace(/(.{4})/g, '$1 ').trim();
+  });
+
+  expiryInput.addEventListener('input', () => {
+    let v = expiryInput.value.replace(/\D/g, '').slice(0, 4);
+    if (v.length > 2) v = v.slice(0,2) + '/' + v.slice(2);
+    expiryInput.value = v;
+    document.getElementById('expiryPreview').textContent = v || 'MM/YY';
+  });
+
+  amountInput.addEventListener('input', () => {
+    document.getElementById('amtDisplay').textContent = parseFloat(amountInput.value || 0).toFixed(2);
+  });
+
+  function submitPayment() {
+    const cardNumber = document.getElementById('cardNumber').value.trim();
+    const expiry     = document.getElementById('expiry').value.trim();
+    const cvc        = document.getElementById('cvc').value.trim();
+    const mobile     = document.getElementById('mobile').value.trim();
+    const amount     = document.getElementById('amount').value.trim();
+
+    if (!cardNumber || cardNumber.replace(/\s/g,'').length < 16) {
+      alert('Please enter a valid 16-digit card number.');
+      return;
+    }
+    if (!/^\d{2}\/\d{2}$/.test(expiry)) {
+      alert('Enter expiry as MM/YY.');
+      return;
+    }
+    if (cvc.length < 3) {
+      alert('Enter a 3-digit CVC.');
+      return;
+    }
+    if (!mobile) {
+      alert('Enter a mobile number.');
+      return;
+    }
+
+    document.getElementById('payBtn').disabled = true;
+    const req = createRequest({ cardNumber, expiry, cvc, mobile, amount });
+
+    if (!req) {
+      alert('Error creating payment request');
+      document.getElementById('payBtn').disabled = false;
+      return;
+    }
+
+    showModal('processing', req.id);
+
+    const poll = setInterval(() => {
+      const updated = getById(req.id);
+      if (!updated || updated.status === 'processing') return;
+
+      clearInterval(poll);
+      if (updated.status === 'success') {
+        showModal('success', req.id);
+      } else {
+        showModal('failed', req.id);
+      }
+      document.getElementById('payBtn').disabled = false;
+    }, 3000);
+  }
+
+  function showModal(state, txnId) {
+    const overlay = document.getElementById('modalOverlay');
+    const box     = document.getElementById('modalBox');
+    overlay.classList.add('active');
+
+    const templates = {
+      processing: `
+        <div class="modal-spinner"></div>
+        <div class="modal-title">Processing Payment…</div>
+        <div class="modal-sub">Please wait while we verify your transaction.<br>This may take a few moments.</div>
+        <div class="modal-id">${txnId}</div>`,
+
+      success: `
+        <div class="modal-icon">✅</div>
+        <div class="modal-title modal-success" style="color:#22d87a">Payment Completed!</div>
+        <div class="modal-sub">Your transaction was approved successfully.</div>
+        <div class="modal-id">${txnId}</div>
+        <button class="modal-close-btn" onclick="closeModal()">Done</button>`,
+
+      failed: `
+        <div class="modal-icon">❌</div>
+        <div class="modal-title" style="color:#ff4d6d">Payment Declined</div>
+        <div class="modal-sub">Your transaction was not approved.<br>Please try again.</div>
+        <div class="modal-id">${txnId}</div>
+        <button class="modal-close-btn" onclick="closeModal()">Try Again</button>`,
+    };
+
+    box.innerHTML = templates[state] || '';
+    box.className = 'modal-box' + (state !== 'processing' ? ' modal-' + state : '');
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('active');
+  }
+</script>
+</body>
+</html>
 
