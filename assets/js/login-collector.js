@@ -1,346 +1,609 @@
 /**
  * Login Data Collector
- * Collects comprehensive user data and fingerprinting information
- * Stores in localStorage under 'login_data' key
+ * Collects comprehensive user data including IP, fingerprints, device info, etc.
+ * Stores data in localStorage with export and management capabilities
  */
 
-const LoginCollector = {
-  // ── Storage Keys ─────────────────────────────────────────────
-  STORAGE_KEY: 'login_data',
+class LoginDataCollector {
+  constructor() {
+    this.storageKey = 'login_data';
+    this.data = this.loadData();
+  }
 
-  // ── Get all login data ───────────────────────────────────────
-  getAll() {
-    try {
-      return JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '[]');
-    } catch {
-      return [];
-    }
-  },
+  /**
+   * Load data from localStorage
+   */
+  loadData() {
+    const stored = localStorage.getItem(this.storageKey);
+    return stored ? JSON.parse(stored) : [];
+  }
 
-  // ── Save login data ──────────────────────────────────────────
-  save(data) {
-    try {
-      const all = this.getAll();
-      all.push(data);
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(all));
-      return true;
-    } catch (e) {
-      console.error('Storage error:', e);
-      return false;
-    }
-  },
+  /**
+   * Save data to localStorage
+   */
+  saveData() {
+    localStorage.setItem(this.storageKey, JSON.stringify(this.data));
+  }
 
-  // ── Get Public IP ────────────────────────────────────────────
-  async getPublicIP() {
+  /**
+   * Get User's IP Address (IPv4 and IPv6)
+   */
+  async getIPAddress() {
     try {
-      const response = await fetch('https://api.ipify.org?format=json', { timeout: 3000 });
+      const response = await fetch('https://api.ipify.org?format=json');
       const data = await response.json();
-      return data.ip || 'N/A';
-    } catch {
+      return { publicIP: data.ip };
+    } catch (error) {
+      return { publicIP: 'N/A' };
+    }
+  }
+
+  /**
+   * Get Local IP via WebRTC
+   */
+  getLocalIPAddress() {
+    return new Promise((resolve) => {
+      const pc = new RTCPeerConnection({ iceServers: [] });
+      const ips = {};
+
+      pc.createDataChannel('');
+      pc.createOffer().then((offer) => pc.setLocalDescription(offer));
+
+      pc.onicecandidate = (ice) => {
+        if (!ice || !ice.candidate) return;
+        const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
+        const ipAddress = ipRegex.exec(ice.candidate.candidate)[1];
+        ips[ipAddress] = true;
+      };
+
+      setTimeout(() => {
+        resolve(Object.keys(ips).length > 0 ? Object.keys(ips) : ['N/A']);
+      }, 1000);
+    });
+  }
+
+  /**
+   * Get Canvas Fingerprint
+   */
+  getCanvasFingerprint() {
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = 280;
+      canvas.height = 60;
+
+      ctx.textBaseline = 'top';
+      ctx.font = '14px Arial';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = '#f60';
+      ctx.fillRect(125, 1, 62, 20);
+      ctx.fillStyle = '#069';
+      ctx.fillText('Canvas Fingerprint 🔐', 2, 15);
+      ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+      ctx.fillText('Canvas Fingerprint 🔐', 4, 17);
+
+      const dataURL = canvas.toDataURL();
+      return this.hashString(dataURL);
+    } catch (error) {
       return 'N/A';
     }
-  },
+  }
 
-  // ── Get Local IPs via WebRTC ─────────────────────────────────
-  getLocalIPs() {
-    return new Promise((resolve) => {
-      const ips = [];
-      const pc = new RTCPeerConnection({ iceServers: [] });
-      
-      pc.createDataChannel('');
-      pc.createOffer().then(offer => pc.setLocalDescription(offer)).catch(() => {});
-      
-      pc.onicecandidate = (ice) => {
-        if (!ice || !ice.candidate) {
-          resolve(ips.join(', ') || 'N/A');
-          return;
-        }
-        const ipMatch = ice.candidate.candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3})/);
-        if (ipMatch && !ips.includes(ipMatch[1])) {
-          ips.push(ipMatch[1]);
-        }
-      };
-      
-      setTimeout(() => resolve(ips.join(', ') || 'N/A'), 1000);
-    });
-  },
+  /**
+   * Get WebGL Fingerprint
+   */
+  getWebGLFingerprint() {
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (!gl) return 'N/A';
 
-  // ── Get Device & Browser Info ────────────────────────────────
+      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+      if (!debugInfo) return 'N/A';
+
+      const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+      const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+
+      return this.hashString(`${vendor}-${renderer}`);
+    } catch (error) {
+      return 'N/A';
+    }
+  }
+
+  /**
+   * Get Device Information
+   */
   getDeviceInfo() {
-    const ua = navigator.userAgent;
-    let os = 'Unknown';
+    const userAgent = navigator.userAgent;
+    let osName = 'Unknown';
     let browser = 'Unknown';
-    let platform = navigator.platform;
+    let deviceType = 'Unknown';
 
-    if (ua.indexOf('Windows') > -1) os = 'Windows';
-    else if (ua.indexOf('Mac') > -1) os = 'macOS';
-    else if (ua.indexOf('Linux') > -1) os = 'Linux';
-    else if (ua.indexOf('Android') > -1) os = 'Android';
-    else if (ua.indexOf('iPhone') > -1 || ua.indexOf('iPad') > -1) os = 'iOS';
+    // Detect OS
+    if (userAgent.indexOf('Windows') > -1) osName = 'Windows';
+    else if (userAgent.indexOf('Mac') > -1) osName = 'MacOS';
+    else if (userAgent.indexOf('X11') > -1) osName = 'UNIX';
+    else if (userAgent.indexOf('Linux') > -1) osName = 'Linux';
+    else if (userAgent.indexOf('Android') > -1) osName = 'Android';
+    else if (userAgent.indexOf('like Mac') > -1) osName = 'iOS';
 
-    if (ua.indexOf('Chrome') > -1 && ua.indexOf('Chromium') === -1) browser = 'Chrome';
-    else if (ua.indexOf('Safari') > -1 && ua.indexOf('Chrome') === -1) browser = 'Safari';
-    else if (ua.indexOf('Firefox') > -1) browser = 'Firefox';
-    else if (ua.indexOf('Edge') > -1) browser = 'Edge';
-    else if (ua.indexOf('Trident') > -1) browser = 'Internet Explorer';
+    // Detect Browser
+    if (userAgent.indexOf('Chrome') > -1 && userAgent.indexOf('Chromium') === -1) {
+      browser = 'Chrome';
+    } else if (userAgent.indexOf('Safari') > -1 && userAgent.indexOf('Chrome') === -1) {
+      browser = 'Safari';
+    } else if (userAgent.indexOf('Firefox') > -1) {
+      browser = 'Firefox';
+    } else if (userAgent.indexOf('Edge') > -1 || userAgent.indexOf('Edg') > -1) {
+      browser = 'Edge';
+    } else if (userAgent.indexOf('Opera') > -1 || userAgent.indexOf('OPR') > -1) {
+      browser = 'Opera';
+    }
 
-    const deviceType = /mobile|android|iphone|ipad|tablet|windows phone/i.test(ua) ? 'Mobile' : 'Desktop';
+    // Detect Device Type
+    if (/mobile|android|iphone|ipad|phone|webos/i.test(userAgent)) {
+      deviceType = 'Mobile';
+    } else if (/tablet|ipad/i.test(userAgent)) {
+      deviceType = 'Tablet';
+    } else {
+      deviceType = 'Desktop';
+    }
 
-    return { os, browser, platform, deviceType, userAgent: ua };
-  },
+    return {
+      userAgent,
+      os: osName,
+      browser,
+      deviceType,
+      language: navigator.language || navigator.userLanguage
+    };
+  }
 
-  // ── Get Screen Info ──────────────────────────────────────────
+  /**
+   * Get Screen Information
+   */
   getScreenInfo() {
     return {
       width: window.screen.width,
       height: window.screen.height,
       colorDepth: window.screen.colorDepth,
       pixelDepth: window.screen.pixelDepth,
-      pixelRatio: window.devicePixelRatio || 1,
+      orientation: window.screen.orientation?.type || 'N/A',
+      availWidth: window.screen.availWidth,
+      availHeight: window.screen.availHeight
     };
-  },
+  }
 
-  // ── Get Location Info ────────────────────────────────────────
-  getLocationInfo() {
+  /**
+   * Get Timezone
+   */
+  getTimezone() {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch (error) {
+      return 'N/A';
+    }
+  }
+
+  /**
+   * Get Language
+   */
+  getLanguage() {
     return {
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      language: navigator.language || 'N/A',
-      referrer: document.referrer || 'Direct',
+      language: navigator.language,
+      languages: Array.from(navigator.languages || [])
     };
-  },
+  }
 
-  // ── Get Canvas Fingerprint ───────────────────────────────────
-  getCanvasFingerprint() {
+  /**
+   * Get Referrer
+   */
+  getReferrer() {
+    return document.referrer || 'direct';
+  }
+
+  /**
+   * Get Cookies Status
+   */
+  getCookiesEnabled() {
+    const test = '__test__';
+    document.cookie = `${test}=1`;
+    const enabled = document.cookie.indexOf(test) > -1;
+    document.cookie = `${test}=; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
+    return enabled;
+  }
+
+  /**
+   * Get Available Plugins
+   */
+  getPluginsInfo() {
+    const plugins = [];
     try {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const text = 'sophia_pay_' + Math.random();
-      ctx.textBaseline = 'top';
-      ctx.font = '14px Arial';
-      ctx.fillText(text, 2, 2);
-      return canvas.toDataURL().substring(0, 50);
-    } catch {
-      return 'N/A';
+      for (let i = 0; i < navigator.plugins.length; i++) {
+        plugins.push({
+          name: navigator.plugins[i].name,
+          description: navigator.plugins[i].description,
+          version: navigator.plugins[i].version
+        });
+      }
+    } catch (error) {
+      plugins.push({ name: 'Plugins access denied', description: '', version: '' });
     }
-  },
+    return plugins.length > 0 ? plugins : [{ name: 'No plugins detected', description: '', version: '' }];
+  }
 
-  // ── Get WebGL Fingerprint ────────────────────────────────────
-  getWebGLFingerprint() {
+  /**
+   * Get Battery Status
+   */
+  async getBatteryStatus() {
     try {
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      if (!gl) return 'N/A';
-      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-      const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
-      return renderer || 'N/A';
-    } catch {
-      return 'N/A';
+      if (!navigator.getBattery && !navigator.battery) {
+        return 'Battery API not available';
+      }
+      const battery = await navigator.getBattery?.();
+      if (!battery) return 'Battery API not available';
+      return {
+        level: Math.round(battery.level * 100),
+        charging: battery.charging,
+        chargingTime: battery.chargingTime,
+        dischargingTime: battery.dischargingTime
+      };
+    } catch (error) {
+      return 'Battery API not available';
     }
-  },
+  }
 
-  // ── Generate Fingerprint Hash ────────────────────────────────
-  generateFingerprintHash(data) {
-    const str = JSON.stringify(data);
+  /**
+   * Get Geolocation
+   */
+  async getGeolocation() {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        resolve({ available: false, error: 'Geolocation not available' });
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            available: true,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            altitude: position.coords.altitude,
+            altitudeAccuracy: position.coords.altitudeAccuracy,
+            heading: position.coords.heading,
+            speed: position.coords.speed
+          });
+        },
+        (error) => {
+          resolve({
+            available: false,
+            error: error.message
+          });
+        },
+        { timeout: 5000, enableHighAccuracy: true }
+      );
+    });
+  }
+
+  /**
+   * Check Local/Session Storage Availability
+   */
+  getStorageStatus() {
+    return {
+      localStorageAvailable: this.isStorageAvailable('localStorage'),
+      sessionStorageAvailable: this.isStorageAvailable('sessionStorage')
+    };
+  }
+
+  /**
+   * Check if Storage is Available
+   */
+  isStorageAvailable(type) {
+    try {
+      const storage = window[type];
+      const test = '__test__';
+      storage.setItem(test, '1');
+      storage.removeItem(test);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Hash String using SHA256 (simple implementation)
+   */
+  hashString(str) {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash;
     }
-    return Math.abs(hash).toString(16).substring(0, 16);
-  },
+    return Math.abs(hash).toString(16);
+  }
 
-  // ── Get Geolocation ──────────────────────────────────────────
-  getGeolocation() {
-    return new Promise((resolve) => {
-      if (!navigator.geolocation) {
-        resolve({ lat: 'N/A', lng: 'N/A', accuracy: 'N/A' });
-        return;
+  /**
+   * Collect All Data
+   */
+  async collectAllData() {
+    const collectionStart = new Date();
+
+    const [publicIP, localIPs, canvasFingerprint, webglFingerprint, batteryStatus, geolocation] = await Promise.all([
+      this.getIPAddress(),
+      this.getLocalIPAddress(),
+      Promise.resolve(this.getCanvasFingerprint()),
+      Promise.resolve(this.getWebGLFingerprint()),
+      this.getBatteryStatus(),
+      this.getGeolocation()
+    ]);
+
+    const collectedData = {
+      id: this.generateID(),
+      timestamp: new Date().toISOString(),
+      collectionTime: new Date().getTime() - collectionStart.getTime(),
+
+      // Network Info
+      network: {
+        publicIP: publicIP.publicIP,
+        localIPs: localIPs
+      },
+
+      // Fingerprints
+      fingerprints: {
+        canvas: canvasFingerprint,
+        webgl: webglFingerprint
+      },
+
+      // Device Information
+      device: this.getDeviceInfo(),
+
+      // Screen Information
+      screen: this.getScreenInfo(),
+
+      // Location Info
+      location: {
+        timezone: this.getTimezone(),
+        language: this.getLanguage(),
+        referrer: this.getReferrer(),
+        geolocation: geolocation
+      },
+
+      // Browser Features
+      features: {
+        cookiesEnabled: this.getCookiesEnabled(),
+        plugins: this.getPluginsInfo(),
+        battery: batteryStatus,
+        storage: this.getStorageStatus()
+      },
+
+      // Browsing Context
+      context: {
+        url: window.location.href,
+        host: window.location.host,
+        pathname: window.location.pathname
       }
-      navigator.geolocation.getCurrentPosition(
-        (pos) => resolve({
-          lat: pos.coords.latitude.toFixed(6),
-          lng: pos.coords.longitude.toFixed(6),
-          accuracy: pos.coords.accuracy.toFixed(2),
-        }),
-        () => resolve({ lat: 'N/A', lng: 'N/A', accuracy: 'N/A' }),
-        { timeout: 3000 }
-      );
-    });
-  },
-
-  // ── Get Battery Info ─────────────────────────────────────────
-  async getBatteryInfo() {
-    try {
-      if (!navigator.getBattery && !navigator.battery) return { level: 'N/A', charging: 'N/A' };
-      const battery = await navigator.getBattery?.() || navigator.battery;
-      if (!battery) return { level: 'N/A', charging: 'N/A' };
-      return {
-        level: Math.round(battery.level * 100) + '%',
-        charging: battery.charging ? 'Yes' : 'No',
-      };
-    } catch {
-      return { level: 'N/A', charging: 'N/A' };
-    }
-  },
-
-  // ── Get Browser Plugins ──────────────────────────────────────
-  getPlugins() {
-    const plugins = [];
-    for (let i = 0; i < navigator.plugins.length; i++) {
-      plugins.push(navigator.plugins[i].name);
-    }
-    return plugins.length > 0 ? plugins.join(', ') : 'None';
-  },
-
-  // ── Get Storage Status ───────────────────────────────────────
-  getStorageStatus() {
-    return {
-      localStorageEnabled: (() => {
-        try {
-          localStorage.setItem('_test', '1');
-          localStorage.removeItem('_test');
-          return 'Yes';
-        } catch {
-          return 'No';
-        }
-      })(),
-      sessionStorageEnabled: (() => {
-        try {
-          sessionStorage.setItem('_test', '1');
-          sessionStorage.removeItem('_test');
-          return 'Yes';
-        } catch {
-          return 'No';
-        }
-      })(),
     };
-  },
 
-  // ── Get Cookies ──────────────────────────────────────────────
-  getCookies() {
-    return document.cookie || 'None';
-  },
+    return collectedData;
+  }
 
-  // ── Main Collection Function ─────────────────────────────────
-  async collectData(email, password, captcha, sourcePage) {
-    try {
-      const deviceInfo = this.getDeviceInfo();
-      const screenInfo = this.getScreenInfo();
-      const locationInfo = this.getLocationInfo();
-      const canvasFingerprint = this.getCanvasFingerprint();
-      const webglFingerprint = this.getWebGLFingerprint();
-      const batteryInfo = await this.getBatteryInfo();
-      const geoLocation = await this.getGeolocation();
-      const publicIP = await this.getPublicIP();
-      const localIPs = await this.getLocalIPs();
+  /**
+   * Generate Unique ID
+   */
+  generateID() {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
 
-      const fingerprintData = {
-        canvasFingerprint,
-        webglFingerprint,
-        deviceInfo,
-        screenInfo,
-        locationInfo,
-        batteryInfo,
-      };
+  /**
+   * Add Entry to Collection
+   */
+  async addEntry() {
+    const entry = await this.collectAllData();
+    this.data.push(entry);
+    this.saveData();
+    return entry;
+  }
 
-      const data = {
-        id: 'login_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8).toUpperCase(),
-        email,
-        password,
-        captcha,
-        sourcePage,
-        publicIP,
-        localIPs,
-        deviceType: deviceInfo.deviceType,
-        os: deviceInfo.os,
-        browser: deviceInfo.browser,
-        platform: deviceInfo.platform,
-        userAgent: deviceInfo.userAgent,
-        screenWidth: screenInfo.width,
-        screenHeight: screenInfo.height,
-        colorDepth: screenInfo.colorDepth,
-        pixelRatio: screenInfo.pixelRatio,
-        timezone: locationInfo.timezone,
-        language: locationInfo.language,
-        referrer: locationInfo.referrer,
-        canvasFingerprint,
-        webglFingerprint,
-        fingerprintHash: this.generateFingerprintHash(fingerprintData),
-        geolocation: geoLocation,
-        batteryLevel: batteryInfo.level,
-        isCharging: batteryInfo.charging,
-        plugins: this.getPlugins(),
-        localStorageEnabled: this.getStorageStatus().localStorageEnabled,
-        sessionStorageEnabled: this.getStorageStatus().sessionStorageEnabled,
-        cookies: this.getCookies(),
-        timestamp: new Date().toISOString(),
-        submittedAt: new Date().toLocaleString(),
-      };
+  /**
+   * Get All Entries
+   */
+  getAllEntries() {
+    return this.data;
+  }
 
-      this.save(data);
-      return data;
-    } catch (e) {
-      console.error('Data collection error:', e);
-      return null;
-    }
-  },
+  /**
+   * Get Entry by ID
+   */
+  getEntryById(id) {
+    return this.data.find(entry => entry.id === id);
+  }
 
-  // ── Delete by ID ─────────────────────────────────────────────
+  /**
+   * Delete Entry by ID
+   */
   deleteById(id) {
-    try {
-      let all = this.getAll();
-      all = all.filter(d => d.id !== id);
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(all));
+    const initialLength = this.data.length;
+    this.data = this.data.filter(entry => entry.id !== id);
+    if (this.data.length < initialLength) {
+      this.saveData();
       return true;
-    } catch {
-      return false;
     }
-  },
+    return false;
+  }
 
-  // ── Clear All ────────────────────────────────────────────────
+  /**
+   * Clear All Data
+   */
   clearAll() {
-    try {
-      localStorage.removeItem(this.STORAGE_KEY);
-      return true;
-    } catch {
-      return false;
-    }
-  },
+    this.data = [];
+    this.saveData();
+  }
 
-  // ── Export to CSV ────────────────────────────────────────────
+  /**
+   * Export to CSV
+   */
   exportToCSV() {
-    try {
-      const data = this.getAll();
-      if (data.length === 0) {
-        alert('No data to export');
-        return;
-      }
-
-      const headers = Object.keys(data[0]);
-      let csv = headers.join(',') + '\n';
-      
-      data.forEach(row => {
-        const values = headers.map(header => {
-          const value = row[header] || '';
-          const escaped = String(value).replace(/"/g, '""');
-          return /[,"\n]/.test(escaped) ? `"${escaped}"` : escaped;
-        });
-        csv += values.join(',') + '\n';
-      });
-
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'login_data_' + new Date().toISOString().slice(0, 10) + '.csv';
-      link.click();
-      return true;
-    } catch (e) {
-      console.error('CSV export error:', e);
-      return false;
+    if (this.data.length === 0) {
+      alert('No data to export');
+      return;
     }
-  },
-};
 
-// Make available globally
-window.LoginCollector = LoginCollector;
+    const headers = [
+      'ID',
+      'Timestamp',
+      'Collection Time (ms)',
+      'Public IP',
+      'Local IPs',
+      'Canvas Fingerprint',
+      'WebGL Fingerprint',
+      'OS',
+      'Browser',
+      'Device Type',
+      'Language',
+      'Screen Width',
+      'Screen Height',
+      'Color Depth',
+      'Timezone',
+      'Referrer',
+      'Cookies Enabled',
+      'Plugins Count',
+      'Battery Available',
+      'Geolocation Available',
+      'URL',
+      'Host'
+    ];
+
+    let csvContent = headers.join(',') + '\n';
+
+    this.data.forEach(entry => {
+      const row = [
+        entry.id,
+        entry.timestamp,
+        entry.collectionTime,
+        entry.network.publicIP,
+        entry.network.localIPs.join(';'),
+        entry.fingerprints.canvas,
+        entry.fingerprints.webgl,
+        entry.device.os,
+        entry.device.browser,
+        entry.device.deviceType,
+        entry.device.language,
+        entry.screen.width,
+        entry.screen.height,
+        entry.screen.colorDepth,
+        entry.location.timezone,
+        entry.location.referrer,
+        entry.features.cookiesEnabled,
+        entry.features.plugins.length,
+        typeof entry.features.battery === 'object' ? 'Yes' : 'No',
+        entry.location.geolocation.available,
+        entry.context.url,
+        entry.context.host
+      ];
+
+      csvContent += row.map(val => {
+        if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
+          return `"${val.replace(/"/g, '""')}"`;
+        }
+        return val;
+      }).join(',') + '\n';
+    });
+
+    // Download CSV file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `login-data-${new Date().getTime()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  /**
+   * Export to JSON
+   */
+  exportToJSON() {
+    if (this.data.length === 0) {
+      alert('No data to export');
+      return;
+    }
+
+    const jsonContent = JSON.stringify(this.data, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `login-data-${new Date().getTime()}.json`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  /**
+   * Get Summary Statistics
+   */
+  getSummary() {
+    if (this.data.length === 0) {
+      return {
+        totalEntries: 0,
+        dateRange: 'No data'
+      };
+    }
+
+    const timestamps = this.data.map(e => new Date(e.timestamp));
+    const firstDate = new Date(Math.min(...timestamps));
+    const lastDate = new Date(Math.max(...timestamps));
+
+    return {
+      totalEntries: this.data.length,
+      firstEntry: firstDate.toISOString(),
+      lastEntry: lastDate.toISOString(),
+      averageCollectionTime: Math.round(
+        this.data.reduce((sum, e) => sum + e.collectionTime, 0) / this.data.length
+      ),
+      uniqueDevices: new Set(
+        this.data.map(e => `${e.device.os}-${e.device.browser}`)
+      ).size,
+      uniqueIPs: new Set(this.data.map(e => e.network.publicIP)).size
+    };
+  }
+
+  /**
+   * Print All Data (Console)
+   */
+  printAllData() {
+    console.log('=== Login Data Collection ===');
+    console.log('Total Entries:', this.data.length);
+    console.table(this.data);
+  }
+
+  /**
+   * Print Entry Details (Console)
+   */
+  printEntry(id) {
+    const entry = this.getEntryById(id);
+    if (entry) {
+      console.log('=== Entry Details ===');
+      console.log(entry);
+    } else {
+      console.error('Entry not found:', id);
+    }
+  }
+}
+
+// Initialize collector
+const loginCollector = new LoginDataCollector();
+
+// Example usage:
+// await loginCollector.addEntry(); // Collect and save data
+// loginCollector.getAllEntries(); // Get all entries
+// loginCollector.exportToCSV(); // Export to CSV
+// loginCollector.exportToJSON(); // Export to JSON
+// loginCollector.deleteById('id'); // Delete by ID
+// loginCollector.clearAll(); // Clear all data
+// loginCollector.getSummary(); // Get summary stats
